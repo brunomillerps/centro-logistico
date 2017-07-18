@@ -17,7 +17,7 @@ public class Delivery {
     @Column
     private Long vehicle;
 
-    @OneToMany(mappedBy = "delivery", targetEntity = Delivery.class, fetch = FetchType.EAGER, cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "delivery", fetch = FetchType.EAGER, cascade = CascadeType.ALL)
     private List<PackageDelivery> packages;
 
     public Long getVehicle() {

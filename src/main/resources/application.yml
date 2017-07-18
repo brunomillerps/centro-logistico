@@ -7,12 +7,12 @@ spring:
     jackson:
         serialization.indent_output: true
     datasource:
-        type: com.zaxxer.hikari.HikariDataSource
+#        type: com.zaxxer.hikari.HikariDataSource
         url: jdbc:h2:file:./target/h2db/db/logistica;DB_CLOSE_DELAY=-1
         username: logistica
         password:
     jpa:
-        database-platform: io.github.jhipster.domain.util.FixedH2Dialect
+        database-platform: org.hibernate.dialect.H2Dialect
         database: H2
         show-sql: true
         properties:
