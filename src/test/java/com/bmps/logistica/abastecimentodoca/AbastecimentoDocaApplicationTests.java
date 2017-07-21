@@ -3,7 +3,6 @@ package com.bmps.logistica.abastecimentodoca;
 import com.bmps.logistica.abastecimentodoca.domain.Delivery;
 import com.bmps.logistica.abastecimentodoca.domain.Instrucao;
 import com.bmps.logistica.abastecimentodoca.domain.PackageDelivery;
-import com.bmps.logistica.abastecimentodoca.repository.PackageDeliveryRepository;
 import com.bmps.logistica.abastecimentodoca.service.DeliveryService;
 import com.bmps.logistica.abastecimentodoca.service.InstrucoesDeAbastecimentoService;
 import javassist.NotFoundException;
@@ -27,9 +26,6 @@ public class AbastecimentoDocaApplicationTests {
 	DeliveryService deliveryService;
 
 	@Autowired
-	PackageDeliveryRepository packageDeliveryRepository;
-
-	@Autowired
 	InstrucoesDeAbastecimentoService instrucoesDeAbastecimentoService;
 
 	@Test
@@ -46,7 +42,7 @@ public class AbastecimentoDocaApplicationTests {
 
 		deliveryService.criaCarga(delivery);
 
-		List<Instrucao> instrucaos = instrucoesDeAbastecimentoService.consultarPassos(delivery.getDeliveryId(), delivery.getDeliveryId());
+		List<Instrucao> instrucaos = instrucoesDeAbastecimentoService.consultarPassos(delivery.getDeliveryId(), delivery.getVehicle());
 
 		instrucaos.forEach(instrucao -> System.out.println(instrucao));
 

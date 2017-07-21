@@ -23,4 +23,4 @@ spring:
             hibernate.generate_statistics: true
             hibernate.hbm2ddl.auto: update
 server:
-    port: 8080
+    port: 8089
