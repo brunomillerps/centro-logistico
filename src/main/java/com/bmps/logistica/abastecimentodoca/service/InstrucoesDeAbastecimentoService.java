@@ -4,12 +4,17 @@ import com.bmps.logistica.abastecimentodoca.domain.Delivery;
 import com.bmps.logistica.abastecimentodoca.domain.Instrucao;
 import com.bmps.logistica.abastecimentodoca.domain.PackageDelivery;
 import com.bmps.logistica.abastecimentodoca.repository.DeliveryRepository;
+import com.bmps.logistica.abastecimentodoca.repository.PackageDeliveryRepository;
+import javassist.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 @Service
@@ -20,28 +25,47 @@ public class InstrucoesDeAbastecimentoService {
     @Autowired
     private DeliveryRepository deliveryRepository;
 
-    public List<Instrucao> consultarPassos(Long deliveryId, Long vehicleId) {
+    @Autowired
+    private PackageDeliveryRepository packageDeliveryRepository;
+
+    public List<Instrucao> consultarPassos(Long deliveryId, Long vehicleId) throws Exception {
         log.info("Analisando passos para DeliveryId: {} e Vehicle: {}", deliveryId, vehicleId);
+        Optional<Delivery> delivery = deliveryRepository.findByDeliveryIdAndVehicle(deliveryId, vehicleId);
+        if (!delivery.isPresent())
+            throw new NotFoundException(String.format("Delivery was not found by deliveryId/vehicleId %s/%s", deliveryId, vehicleId));
 
-        Delivery delivery = deliveryRepository.findByDeliveryIdAndVehicle(deliveryId, vehicleId);
-
-        return comporPassosParaAbastecimento(delivery);
+        return comporPassosParaAbastecimento(delivery.get());
     }
 
-    private List<Instrucao> comporPassosParaAbastecimento(Delivery delivery) {
+    private List<Instrucao> comporPassosParaAbastecimento(Delivery delivery) throws Exception {
+        log.debug("Delivery Id: {}", delivery.getId());
+        log.debug("Pacotes: {}", packageDeliveryRepository.findByDeliveryId(delivery.getId()));
+
         Stack<PackageDelivery> abastecimento = new Stack<>();
         Stack<PackageDelivery> transferencia = new Stack<>();
         Stack<PackageDelivery> caminhao = new Stack<>();
 
+        log.info("Inicializando fila de abastecimento...");
         enriqueceAbastecimento(abastecimento, delivery);
 
         List<Instrucao> instrucoes = new LinkedList<>();
-        sugereInstrucoesDeCarga(abastecimento.size(), abastecimento, caminhao, transferencia, instrucoes);
+        log.info("Inicializando instruções...");
+        sugereInstrucoesDeCarga(abastecimento.size(), abastecimento, caminhao, transferencia, instrucoes,
+                Instrucao.ABASTECIMENTO, Instrucao.TRANSFERENCIA, Instrucao.CAMINHAO);
 
-        return null;
+        log.debug("Instruções recuperadas: " + instrucoes.toString());
+        return instrucoes;
     }
 
-    private void enriqueceAbastecimento(Stack<PackageDelivery> abastecimento, Delivery delivery) {
+    private void enriqueceAbastecimento(Stack<PackageDelivery> abastecimento, Delivery delivery) throws Exception {
+        if (delivery.getPackages().size() >
+            delivery.getPackages()
+                    .stream()
+                    .filter(distinctByKey(packageDelivery -> packageDelivery.getWeight()))
+                    .collect(Collectors.toList()).size()) {
+            throw new Exception("Não é permitido empilhar caixas com o mesmo peso");
+        }
+
         delivery.getPackages()
                 .stream()
                 .filter(Objects::nonNull)
@@ -51,28 +75,35 @@ public class InstrucoesDeAbastecimentoService {
         log.debug("Pilha de abastecimento enriquecida {} ", abastecimento);
     }
 
+    public static <T> Predicate<T> distinctByKey(Function<? super T, ?> keyExtractor) {
+        Map<Object,Boolean> seen = new ConcurrentHashMap<>();
+        return t -> seen.putIfAbsent(keyExtractor.apply(t), Boolean.TRUE) == null;
+    }
+
     /**
-     * Impelementação do algoritmo conhecido como Torre de Hanoi
+     * Impelementação do algoritmo (torre de hanoi) que irá sugerir a ordem que os pacotes devem ser empilhados
      * @param n Número de elementos na área de transferencia
      * @param abastecimento
      * @param caminhao
      * @param transferencia
      * @param instrucoes
+     * @param A
+     * @param T
+     * @param C
      * @return Uma lista de instruções para serem seguidas, passo a passo
-     */
-    private List<Instrucao> sugereInstrucoesDeCarga(int n, Stack<PackageDelivery> abastecimento, Stack<PackageDelivery> caminhao, Stack<PackageDelivery> transferencia, List<Instrucao> instrucoes) {
-        Long step = 0L;
+     * */
+    private void sugereInstrucoesDeCarga(int n, Stack<PackageDelivery> abastecimento, Stack<PackageDelivery> transferencia, Stack<PackageDelivery> caminhao,
+                                         List<Instrucao> instrucoes, String A, String T, String C) {
         if (n > 0) {
-            sugereInstrucoesDeCarga(n-1, abastecimento, transferencia, caminhao, instrucoes);
-
-            instrucoes.add(new Instrucao(step+1L, abastecimento.peek().getDelivery().getDeliveryId(), "zona de " + abastecimento, ""));
-            caminhao.push(abastecimento.pop());
-            System.out.println("---------------");
-            System.out.println("Abastecimento: " + abastecimento);
-            System.out.println("Caminhao: " + caminhao);
-            System.out.println("Transferencia: " + transferencia);
-            sugereInstrucoesDeCarga(n-1, transferencia, caminhao, abastecimento, instrucoes);
+            sugereInstrucoesDeCarga(n-1, abastecimento, caminhao, transferencia, instrucoes, A, C, T); // abastecimento para transferencia
+            instrucoes.add(new Instrucao(getStep(instrucoes), abastecimento.peek().getId(), A, C)); // log
+            caminhao.push(abastecimento.pop());  // movimento do abastecimento para o caminhão
+            sugereInstrucoesDeCarga(n-1, transferencia, abastecimento, caminhao, instrucoes, T, A, C); // abastecimento para caminhao
         }
-        return instrucoes;
+    }
+
+    private Long getStep(List<Instrucao> instrucoes) {
+        if (instrucoes.isEmpty()) return 1L;
+        return instrucoes.get(instrucoes.size()-1).getStep()+1L;
     }
 }
