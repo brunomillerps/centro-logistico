@@ -2,6 +2,7 @@ package com.bmps.logistica.abastecimentodoca.service;
 
 import com.bmps.logistica.abastecimentodoca.domain.Delivery;
 import com.bmps.logistica.abastecimentodoca.domain.PackageDelivery;
+import com.bmps.logistica.abastecimentodoca.domain.Predicates;
 import com.bmps.logistica.abastecimentodoca.repository.DeliveryRepository;
 import com.bmps.logistica.abastecimentodoca.repository.PackageDeliveryRepository;
 import jersey.repackaged.com.google.common.base.Preconditions;
@@ -14,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Created by bmps on 20/07/17.
@@ -30,12 +32,19 @@ public class DeliveryService {
     @Autowired
     PackageDeliveryRepository packageDeliveryRepository;
 
-    public void criaCarga(Delivery delivery) {
+    public void criaCarga(Delivery delivery) throws Exception {
         Preconditions.checkNotNull(delivery.getPackages());
         Preconditions.checkNotNull(delivery.getDeliveryId());
         Preconditions.checkNotNull(delivery.getVehicle());
         log.info("Criando conjunto de cargas para DeliveryId/Vehicle {}/{}", delivery.getDeliveryId(), delivery.getVehicle());
 
+        if (delivery.getPackages().size() >
+                delivery.getPackages()
+                        .stream()
+                        .filter(Predicates.distinctByKey(packageDelivery -> packageDelivery.getWeight()))
+                        .collect(Collectors.toList()).size()) {
+            throw new Exception("Não é permitido empilhar caixas com o mesmo peso");
+        }
         List<PackageDelivery> packagesNew = Lists.newArrayList(delivery.getPackages());
 
         delivery.setPackages(null);
@@ -56,4 +65,5 @@ public class DeliveryService {
                 });
         delivery.setPackages(packagesNew);
     }
+
 }

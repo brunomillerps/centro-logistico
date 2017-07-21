@@ -12,9 +12,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 @Service
@@ -37,7 +34,7 @@ public class InstrucoesDeAbastecimentoService {
         return comporPassosParaAbastecimento(delivery.get());
     }
 
-    private List<Instrucao> comporPassosParaAbastecimento(Delivery delivery) throws Exception {
+    private List<Instrucao> comporPassosParaAbastecimento(Delivery delivery) {
         log.debug("Delivery Id: {}", delivery.getId());
         log.debug("Pacotes: {}", packageDeliveryRepository.findByDeliveryId(delivery.getId()));
 
@@ -57,15 +54,7 @@ public class InstrucoesDeAbastecimentoService {
         return instrucoes;
     }
 
-    private void enriqueceAbastecimento(Stack<PackageDelivery> abastecimento, Delivery delivery) throws Exception {
-        if (delivery.getPackages().size() >
-            delivery.getPackages()
-                    .stream()
-                    .filter(distinctByKey(packageDelivery -> packageDelivery.getWeight()))
-                    .collect(Collectors.toList()).size()) {
-            throw new Exception("Não é permitido empilhar caixas com o mesmo peso");
-        }
-
+    private void enriqueceAbastecimento(Stack<PackageDelivery> abastecimento, Delivery delivery) {
         delivery.getPackages()
                 .stream()
                 .filter(Objects::nonNull)
@@ -73,11 +62,6 @@ public class InstrucoesDeAbastecimentoService {
                 .collect(Collectors.toList())
                 .forEach(packageDelivery -> abastecimento.push(packageDelivery));
         log.debug("Pilha de abastecimento enriquecida {} ", abastecimento);
-    }
-
-    public static <T> Predicate<T> distinctByKey(Function<? super T, ?> keyExtractor) {
-        Map<Object,Boolean> seen = new ConcurrentHashMap<>();
-        return t -> seen.putIfAbsent(keyExtractor.apply(t), Boolean.TRUE) == null;
     }
 
     /**

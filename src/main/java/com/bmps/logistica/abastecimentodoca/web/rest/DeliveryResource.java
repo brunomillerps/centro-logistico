@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 @RestController
@@ -31,12 +32,16 @@ public class DeliveryResource {
             produces={MediaType.APPLICATION_JSON_VALUE, MediaType.TEXT_PLAIN_VALUE})
     public ResponseEntity cadastroDeCargas(@Valid @RequestBody Delivery delivery) {
         HttpHeaders textPlainHeaders = new HttpHeaders();
-        textPlainHeaders.setContentType(MediaType.TEXT_PLAIN);
+        textPlainHeaders.setContentType(new MediaType("application", "text", StandardCharsets.UTF_8));
 
         return deliveryRepository.findByDeliveryIdAndVehicle(delivery.getDeliveryId(), delivery.getVehicle())
-                .map(deliveryFound -> new ResponseEntity<>("Delivery already exists", textPlainHeaders, HttpStatus.BAD_REQUEST))
+                .map(deliveryFound -> new ResponseEntity<>("Entrega já existe", textPlainHeaders, HttpStatus.BAD_REQUEST))
                 .orElseGet(() -> {
-                    deliveryService.criaCarga(delivery);
+                    try {
+                        deliveryService.criaCarga(delivery);
+                    } catch (Exception e) {
+                        return new ResponseEntity<>("Erro ao criar entrega: " + e.getMessage(), textPlainHeaders, HttpStatus.BAD_REQUEST);
+                    }
                     return new ResponseEntity<>(HttpStatus.CREATED);
                 });
     }
