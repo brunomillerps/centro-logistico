@@ -9,7 +9,7 @@ Disponibilizar APIs para facilitar o abastecimento e organização de cargas em 
 
 ### Api que relaciona Pacotes X Caminhão X Entrega
 * Não pode cadastrar vehicle e delivery 2+ vezes
-* Não pode empilhar pacotes com o mesmo peso, apenas em ordem piramidal
+* Não pode empilhar pacotes com o mesmo peso
 ```
 POST /delivery
 {
