@@ -5,6 +5,10 @@ Disponibilizar APIs para facilitar o abastecimento e organização de cargas em 
 * Java 8
 * O projeto está configurado na porta 8089
 * Testes via curl, POSTMAN ou relacionado
+
+## Subir a aplicação
+Está disponível na pasta `target` o jar da aplicação. Basta executar, via linha de comando:
+* `java -jar abastecimento-doca-1.0.0.jar`
 ## Chamada das APIs
 
 ### Api que relaciona Pacotes X Caminhão X Entrega
